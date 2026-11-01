@@ -1,4 +1,5 @@
--- Script de referencia: la API ejecuta lo mismo al arrancar (Data/Conexion.cs → Inicializar)
+-- Ejecutar una vez antes de arrancar la API (SSMS, Azure Data Studio o sqlcmd):
+--   sqlcmd -S "(localdb)\MSSQLLocalDB" -f 65001 -i Database/script.sql
 IF DB_ID(N'ProductosDB') IS NULL
     CREATE DATABASE ProductosDB;
 GO
@@ -26,9 +27,9 @@ END
 GO
 
 -- Consultas equivalentes a cada método del repositorio
--- ObtenerTodos : SELECT * FROM dbo.Productos ORDER BY Id;
--- ObtenerPorId : SELECT * FROM dbo.Productos WHERE Id = @Id;
--- Insertar     : INSERT INTO dbo.Productos (...) OUTPUT INSERTED.Id VALUES (...);
--- Actualizar   : UPDATE dbo.Productos SET ... WHERE Id = @Id;
--- Eliminar     : DELETE FROM dbo.Productos WHERE Id = @Id;
--- Buscar       : SELECT * FROM dbo.Productos WHERE Nombre LIKE @Texto OR Categoria LIKE @Texto;
+-- ObtenerTodos : SELECT * FROM Productos ORDER BY Id
+-- ObtenerPorId : SELECT * FROM Productos WHERE Id = @id
+-- Insertar     : INSERT INTO Productos (...) OUTPUT INSERTED.Id VALUES (...)
+-- Actualizar   : UPDATE Productos SET ... WHERE Id = @id
+-- Eliminar     : DELETE FROM Productos WHERE Id = @id
+-- Buscar       : SELECT * FROM Productos WHERE Nombre LIKE @texto OR Categoria LIKE @texto

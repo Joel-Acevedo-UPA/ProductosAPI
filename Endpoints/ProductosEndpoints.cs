@@ -22,7 +22,7 @@ public static class ProductosEndpoints
         );
 
         // GET /productos/{id} — 200 con el producto o 404
-        group.MapGet("/{id:int}", (IProductoRepository repo, int id) =>
+        group.MapGet("/{id}", (IProductoRepository repo, int id) =>
         {
             var producto = repo.ObtenerPorId(id);
             return producto is null
@@ -41,7 +41,7 @@ public static class ProductosEndpoints
         });
 
         // PUT /productos/{id} — 204 si se actualizó, 400 o 404
-        group.MapPut("/{id:int}", (IProductoRepository repo, int id, Producto actualizado) =>
+        group.MapPut("/{id}", (IProductoRepository repo, int id, Producto actualizado) =>
         {
             var error = Validar(actualizado);
             if (error != null) return Results.BadRequest(new { error }); //400
@@ -53,7 +53,7 @@ public static class ProductosEndpoints
         });
 
         // DELETE /productos/{id} — 204 si se eliminó o 404
-        group.MapDelete("/{id:int}", (IProductoRepository repo, int id) =>
+        group.MapDelete("/{id}", (IProductoRepository repo, int id) =>
             repo.Eliminar(id)
                 ? Results.NoContent() //204
                 : Results.NotFound(new { mensaje = "Producto no encontrado" })

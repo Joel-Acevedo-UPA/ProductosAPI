@@ -4,117 +4,110 @@ using ProductosAPI.Models;
 
 namespace ProductosAPI.Repositories;
 
-// ProductoRepository.cs — implementa la interface con ADO.NET (SqlCommand + parámetros)
+// ProductoRepository.cs — el único que habla con la base de datos (SqlConnection + SqlCommand)
 public class ProductoRepository : IProductoRepository
 {
-    private const string Columnas = "Id, Nombre, Descripcion, Categoria, Precio, Stock, FechaRegistro";
+    private readonly string cadena = Conexion.Cadena;
 
-    private readonly Conexion _conexion;
-
-    public ProductoRepository(Conexion conexion)
-    {
-        _conexion = conexion;
-    }
-
-    // Consulta: SELECT de todos los productos
+    // Consulta: todos los productos
     public List<Producto> ObtenerTodos()
     {
-        using var conexion = _conexion.Abrir();
-        using var comando = new SqlCommand($"SELECT {Columnas} FROM dbo.Productos ORDER BY Id;", conexion);
-        return LeerLista(comando);
-    }
+        using var con = new SqlConnection(cadena);
+        con.Open();
+        var cmd = new SqlCommand("SELECT * FROM Productos ORDER BY Id", con);
+        using var lector = cmd.ExecuteReader();
 
-    // Consulta: SELECT de un producto por su Id
-    public Producto? ObtenerPorId(int id)
-    {
-        using var conexion = _conexion.Abrir();
-        using var comando = new SqlCommand($"SELECT {Columnas} FROM dbo.Productos WHERE Id = @Id;", conexion);
-        comando.Parameters.AddWithValue("@Id", id);
-
-        using var lector = comando.ExecuteReader();
-        return lector.Read() ? Mapear(lector) : null;
-    }
-
-    // Insert: devuelve el Id generado por IDENTITY
-    public int Insertar(Producto producto)
-    {
-        using var conexion = _conexion.Abrir();
-        using var comando = new SqlCommand(@"
-            INSERT INTO dbo.Productos (Nombre, Descripcion, Categoria, Precio, Stock)
-            OUTPUT INSERTED.Id
-            VALUES (@Nombre, @Descripcion, @Categoria, @Precio, @Stock);", conexion);
-        AgregarParametros(comando, producto);
-
-        return (int)comando.ExecuteScalar();
-    }
-
-    // Actualizar: true si encontró y modificó la fila
-    public bool Actualizar(Producto producto)
-    {
-        using var conexion = _conexion.Abrir();
-        using var comando = new SqlCommand(@"
-            UPDATE dbo.Productos
-            SET Nombre = @Nombre, Descripcion = @Descripcion, Categoria = @Categoria,
-                Precio = @Precio, Stock = @Stock
-            WHERE Id = @Id;", conexion);
-        AgregarParametros(comando, producto);
-        comando.Parameters.AddWithValue("@Id", producto.Id);
-
-        return comando.ExecuteNonQuery() > 0;
-    }
-
-    // Eliminar: true si existía la fila
-    public bool Eliminar(int id)
-    {
-        using var conexion = _conexion.Abrir();
-        using var comando = new SqlCommand("DELETE FROM dbo.Productos WHERE Id = @Id;", conexion);
-        comando.Parameters.AddWithValue("@Id", id);
-
-        return comando.ExecuteNonQuery() > 0;
-    }
-
-    // Buscar: coincidencias parciales en nombre o categoría
-    public List<Producto> Buscar(string texto)
-    {
-        using var conexion = _conexion.Abrir();
-        using var comando = new SqlCommand($@"
-            SELECT {Columnas} FROM dbo.Productos
-            WHERE Nombre LIKE @Texto OR Categoria LIKE @Texto
-            ORDER BY Nombre;", conexion);
-        comando.Parameters.AddWithValue("@Texto", $"%{texto}%");
-
-        return LeerLista(comando);
-    }
-
-    // ---- Ayudantes ----
-
-    private static void AgregarParametros(SqlCommand comando, Producto producto)
-    {
-        comando.Parameters.AddWithValue("@Nombre",      producto.Nombre);
-        comando.Parameters.AddWithValue("@Descripcion", producto.Descripcion);
-        comando.Parameters.AddWithValue("@Categoria",   producto.Categoria);
-        comando.Parameters.AddWithValue("@Precio",      producto.Precio);
-        comando.Parameters.AddWithValue("@Stock",       producto.Stock);
-    }
-
-    private static List<Producto> LeerLista(SqlCommand comando)
-    {
         var productos = new List<Producto>();
-        using var lector = comando.ExecuteReader();
         while (lector.Read())
-            productos.Add(Mapear(lector));
+            productos.Add(LeerProducto(lector));
         return productos;
     }
 
-    // Convierte la fila actual del lector en un objeto Producto
-    private static Producto Mapear(SqlDataReader lector) => new()
+    // Consulta: un producto por su Id
+    public Producto? ObtenerPorId(int id)
     {
-        Id            = lector.GetInt32(0),
-        Nombre        = lector.GetString(1),
-        Descripcion   = lector.GetString(2),
-        Categoria     = lector.GetString(3),
-        Precio        = lector.GetDecimal(4),
-        Stock         = lector.GetInt32(5),
-        FechaRegistro = lector.GetDateTime(6),
-    };
+        using var con = new SqlConnection(cadena);
+        con.Open();
+        var cmd = new SqlCommand("SELECT * FROM Productos WHERE Id = @id", con);
+        cmd.Parameters.AddWithValue("@id", id);
+        using var lector = cmd.ExecuteReader();
+        if (!lector.Read()) return null;
+        return LeerProducto(lector);
+    }
+
+    // Insert: regresa el Id que generó la base de datos
+    public int Insertar(Producto producto)
+    {
+        using var con = new SqlConnection(cadena);
+        con.Open();
+        var cmd = new SqlCommand(
+            "INSERT INTO Productos (Nombre, Descripcion, Categoria, Precio, Stock) " +
+            "OUTPUT INSERTED.Id " +
+            "VALUES (@nombre, @descripcion, @categoria, @precio, @stock)", con);
+        cmd.Parameters.AddWithValue("@nombre",      producto.Nombre);
+        cmd.Parameters.AddWithValue("@descripcion", producto.Descripcion);
+        cmd.Parameters.AddWithValue("@categoria",   producto.Categoria);
+        cmd.Parameters.AddWithValue("@precio",      producto.Precio);
+        cmd.Parameters.AddWithValue("@stock",       producto.Stock);
+        return (int)cmd.ExecuteScalar();
+    }
+
+    // Actualizar: true si encontró el producto y lo cambió
+    public bool Actualizar(Producto producto)
+    {
+        using var con = new SqlConnection(cadena);
+        con.Open();
+        var cmd = new SqlCommand(
+            "UPDATE Productos SET Nombre = @nombre, Descripcion = @descripcion, " +
+            "Categoria = @categoria, Precio = @precio, Stock = @stock " +
+            "WHERE Id = @id", con);
+        cmd.Parameters.AddWithValue("@nombre",      producto.Nombre);
+        cmd.Parameters.AddWithValue("@descripcion", producto.Descripcion);
+        cmd.Parameters.AddWithValue("@categoria",   producto.Categoria);
+        cmd.Parameters.AddWithValue("@precio",      producto.Precio);
+        cmd.Parameters.AddWithValue("@stock",       producto.Stock);
+        cmd.Parameters.AddWithValue("@id",          producto.Id);
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    // Eliminar: true si el producto existía
+    public bool Eliminar(int id)
+    {
+        using var con = new SqlConnection(cadena);
+        con.Open();
+        var cmd = new SqlCommand("DELETE FROM Productos WHERE Id = @id", con);
+        cmd.Parameters.AddWithValue("@id", id);
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    // Buscar: productos cuyo nombre o categoría contengan el texto
+    public List<Producto> Buscar(string texto)
+    {
+        using var con = new SqlConnection(cadena);
+        con.Open();
+        var cmd = new SqlCommand(
+            "SELECT * FROM Productos WHERE Nombre LIKE @texto OR Categoria LIKE @texto ORDER BY Nombre", con);
+        cmd.Parameters.AddWithValue("@texto", "%" + texto + "%");
+        using var lector = cmd.ExecuteReader();
+
+        var productos = new List<Producto>();
+        while (lector.Read())
+            productos.Add(LeerProducto(lector));
+        return productos;
+    }
+
+    // Arma un Producto con la fila en la que está el lector
+    private static Producto LeerProducto(SqlDataReader lector)
+    {
+        return new Producto
+        {
+            Id            = (int)lector["Id"],
+            Nombre        = (string)lector["Nombre"],
+            Descripcion   = (string)lector["Descripcion"],
+            Categoria     = (string)lector["Categoria"],
+            Precio        = (decimal)lector["Precio"],
+            Stock         = (int)lector["Stock"],
+            FechaRegistro = (DateTime)lector["FechaRegistro"]
+        };
+    }
 }

@@ -1,4 +1,3 @@
-using ProductosAPI.Data;
 using ProductosAPI.Endpoints;
 using ProductosAPI.Repositories;
 
@@ -19,14 +18,10 @@ builder.Services.AddCors(options =>
 });
 
 // Inyección de dependencias
-builder.Services.AddSingleton<Conexion>();
-builder.Services.AddScoped<IProductoRepository, ProductoRepository>();
+builder.Services.AddSingleton<IProductoRepository, ProductoRepository>();
 
 
 var app = builder.Build();
-
-// Crear la base de datos y la tabla si no existen
-app.Services.GetRequiredService<Conexion>().Inicializar();
 
 if (app.Environment.IsDevelopment())
 {
